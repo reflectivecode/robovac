@@ -7,7 +7,20 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
+  hassfest:
+    runs-on: ubuntu-latest
+    name: runner / hassfest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+
+      - name: Validate with hassfest
+        uses: home-assistant/actions/hassfest@master
+
   hacs:
     runs-on: ubuntu-latest
     name: runner / hacs
@@ -15,31 +28,6 @@ jobs:
       - uses: hacs/action@d556e736723344f83838d08488c983a15381059a # 22.5.0
         with:
           category: integration
-
-  check-markdown:
-    runs-on: ubuntu-latest
-    name: runner / markdownlint
-    steps:
-      - name: Check out code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-
-      - name: Run Markdown Lint
-        uses: DavidAnson/markdownlint-cli2-action@992badcdf24e3b8eb7e87ff9287fe931bcb00c6e # v20
-        with:
-          globs: "**/*.md"
-
-  check-links:
-    name: runner / linkspector
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-
-      - name: Run linkspector
-        uses: umbrelladocs/action-linkspector@874d01cae9fd488e3077b08952093235bd626977 # v1
-        with:
-          fail_on_error: false
-          reporter: github-pr-review
 
   lint:
     runs-on: ubuntu-latest
@@ -50,8 +38,6 @@ jobs:
 
       - name: Setup Python Environment
         uses: ./.github/actions/setup-python-env
-        with:
-          dev-dependencies: true
 
       - name: Lint with flake8
         run: task lint
@@ -62,25 +48,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: runner / test
-    needs: [check-markdown, check-links, lint, hacs]
     steps:
       - name: Check out code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
       - name: Setup Python Environment
         uses: ./.github/actions/setup-python-env
-        with:
-          dev-dependencies: true
 
       - name: Run tests with pytest
         run: task test
-
-      - name: Code Coverage Summary
-        uses: irongut/CodeCoverageSummary@51cc3a756ddcd398d447c044c02cb6aa83fdae95 # v1.3.0
-        with:
-          filename: coverage.xml
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}

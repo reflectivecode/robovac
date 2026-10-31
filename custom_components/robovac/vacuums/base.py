@@ -1,22 +1,14 @@
-from homeassistant.components.vacuum import VacuumActivity
 from enum import IntEnum, StrEnum
-from typing import Protocol, Dict, List, Any, Type, Optional
+from typing import Protocol, Dict, Any
 
 
 class RoboVacEntityFeature(IntEnum):
     """Supported features of the RoboVac entity."""
 
-    EDGE = 1
-    SMALL_ROOM = 2
     CLEANING_TIME = 4
     CLEANING_AREA = 8
     DO_NOT_DISTURB = 16
     AUTO_RETURN = 32
-    CONSUMABLES = 64
-    ROOM = 128
-    ZONE = 256
-    MAP = 512
-    BOOST_IQ = 1024
 
 
 class RobovacCommand(StrEnum):
@@ -33,8 +25,6 @@ class RobovacCommand(StrEnum):
     CLEANING_TIME = "cleaning_time"
     AUTO_RETURN = "auto_return"
     DO_NOT_DISTURB = "do_not_disturb"
-    BOOST_IQ = "boost_iq"
-    CONSUMABLES = "consumables"
 
 
 class TuyaCodes(StrEnum):
@@ -54,18 +44,10 @@ class TuyaCodes(StrEnum):
     DO_NOT_DISTURB = "107"
     CLEANING_TIME = "109"
     CLEANING_AREA = "110"
-    BOOST_IQ = "118"
-    ROOM_CLEAN = "124"
     AUTO_RETURN = "135"
-
-
-# Default consumables DPS codes
-TUYA_CONSUMABLES_CODES = ["142", "116"]
 
 
 class RobovacModelDetails(Protocol):
     homeassistant_features: int
     robovac_features: int
     commands: Dict[RobovacCommand, Any]
-    dps_codes: Dict[str, str] = {}  # Optional model-specific DPS codes
-    activity_mapping: Dict[str, VacuumActivity] | None = None

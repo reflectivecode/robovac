@@ -4,7 +4,6 @@ import logging
 from hashlib import md5
 from typing import Any, Callable, Dict, List, Tuple
 
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,7 +80,7 @@ class TuyaLocalDiscovery(asyncio.DatagramProtocol):
         """
         data_bytes = data[20:-8]
         try:
-            cipher = Cipher(algorithms.AES(UDP_KEY), modes.ECB(), default_backend())
+            cipher = Cipher(algorithms.AES(UDP_KEY), modes.ECB())
             decryptor = cipher.decryptor()
             padded_data = decryptor.update(data_bytes) + decryptor.finalize()
             # Convert bytes to str for JSON parsing

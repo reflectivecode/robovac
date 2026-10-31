@@ -1,19 +1,11 @@
 name: 'Setup Python Environment'
-description: 'Checks out code, sets up Python, Task, uv, and installs dev dependencies'
+description: 'Sets up Python, Task and uv, and installs dev dependencies'
 
 inputs:
   python-version:
     description: 'Python version to set up'
     required: false
-    default: '3.13'
-  dev-dependencies:
-    description: 'Install dev dependencies'
-    required: false
-    default: 'false'
-  dependencies:
-    description: 'Install dependencies'
-    required: false
-    default: 'false'
+    default: '3.14'
 
 runs:
   using: "composite"
@@ -27,18 +19,11 @@ runs:
       uses: arduino/setup-task@v2
       with:
         version: 3.x
-        repo-token: ${{ github.token }} # Use github.token in composite actions
+        repo-token: ${{ github.token }}
 
     - name: Install uv
-      # Using the specific commit SHA you had, as it might be intentional over a simple vX tag
-      uses: astral-sh/setup-uv@2382069a66b5b52782577081ec324838fd5fc1fc # From user's ci.yml
+      uses: astral-sh/setup-uv@2382069a66b5b52782577081ec324838fd5fc1fc
 
     - name: Install Python dependencies
       shell: bash
       run: task install-dev
-      if: ${{ inputs.dev-dependencies == 'true' }}
-
-    - name: Install Python dependencies
-      shell: bash
-      run: task install
-      if: ${{ inputs.dependencies == 'true' }}

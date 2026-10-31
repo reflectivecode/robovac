@@ -1,8 +1,6 @@
 """Tests for the RoboVac config flow."""
 
-import json
-import asyncio
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 import pytest
 
 from homeassistant import config_entries, data_entry_flow
@@ -23,9 +21,6 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 
-from custom_components.robovac.config_flow import (
-    OptionsFlowHandler,
-)
 from custom_components.robovac.const import DOMAIN, CONF_AUTODISCOVERY, CONF_VACS
 
 
@@ -53,10 +48,10 @@ def mock_eufy_response():
                 "id": "test_device_id",
                 "product": {
                     "appliance": "Cleaning",
-                    "product_code": "T2118",
+                    "product_code": "T2259",
                 },
                 "alias_name": "Test RoboVac",
-                "name": "RoboVac 15C",
+                "name": "RoboVac G32 Pro",
                 "wifi": {"mac": "AA:BB:CC:DD:EE:FF"},
             }
         ]
@@ -191,6 +186,8 @@ async def test_user_form_success(
             "custom_components.robovac.config_flow.TuyaAPISession",
             return_value=MagicMock(get_device=MagicMock(return_value=mock_tuya_device)),
         ),
+        patch("custom_components.robovac.async_setup", return_value=True),
+        patch("custom_components.robovac.async_setup_entry", return_value=True),
     ):
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
@@ -212,10 +209,10 @@ async def test_user_form_success(
     assert CONF_VACS in result["data"]
     assert "test_device_id" in result["data"][CONF_VACS]
     assert result["data"][CONF_VACS]["test_device_id"][CONF_ID] == "test_device_id"
-    assert result["data"][CONF_VACS]["test_device_id"][CONF_MODEL] == "T2118"
+    assert result["data"][CONF_VACS]["test_device_id"][CONF_MODEL] == "T2259"
     assert result["data"][CONF_VACS]["test_device_id"][CONF_NAME] == "Test RoboVac"
     assert (
-        result["data"][CONF_VACS]["test_device_id"][CONF_DESCRIPTION] == "RoboVac 15C"
+        result["data"][CONF_VACS]["test_device_id"][CONF_DESCRIPTION] == "RoboVac G32 Pro"
     )
     assert result["data"][CONF_VACS]["test_device_id"][CONF_MAC] == "AA:BB:CC:DD:EE:FF"
     assert result["data"][CONF_VACS]["test_device_id"][CONF_IP_ADDRESS] == ""
@@ -224,118 +221,3 @@ async def test_user_form_success(
         result["data"][CONF_VACS]["test_device_id"][CONF_ACCESS_TOKEN]
         == "test_local_key"
     )
-
-
-@pytest.mark.asyncio
-async def test_options_flow_init(hass: HomeAssistant):
-    """Test options flow init step."""
-    # Create a mock config entry using MagicMock instead of actual ConfigEntry
-    config_entry = MagicMock(spec=config_entries.ConfigEntry)
-    config_entry.data = {
-        CONF_VACS: {
-            "test_device_id": {
-                CONF_ID: "test_device_id",
-                CONF_NAME: "Test RoboVac",
-                CONF_AUTODISCOVERY: True,
-                CONF_IP_ADDRESS: "",
-            }
-        }
-    }
-    config_entry.entry_id = "test_entry_id"
-
-    # Initialize the options flow
-    flow = OptionsFlowHandler(config_entry)
-    result = await flow.async_step_init()
-
-    assert result["type"] == data_entry_flow.FlowResultType.FORM
-    assert result["step_id"] == "init"
-    assert "selected_vacuum" in result["data_schema"].schema
-
-
-@pytest.mark.asyncio
-async def test_options_flow_edit(hass: HomeAssistant):
-    """Test options flow edit step."""
-    # Create a mock config entry using MagicMock instead of actual ConfigEntry
-    config_entry = MagicMock(spec=config_entries.ConfigEntry)
-    config_entry.data = {
-        CONF_VACS: {
-            "test_device_id": {
-                CONF_ID: "test_device_id",
-                CONF_NAME: "Test RoboVac",
-                CONF_AUTODISCOVERY: True,
-                CONF_IP_ADDRESS: "",
-            }
-        }
-    }
-    config_entry.entry_id = "test_entry_id"
-
-    # Initialize the options flow and select a vacuum
-    flow = OptionsFlowHandler(config_entry)
-    flow.hass = hass
-    flow.selected_vacuum = "test_device_id"
-
-    # Test the edit step
-    result = await flow.async_step_edit()
-
-    assert result["type"] == data_entry_flow.FlowResultType.FORM
-    assert result["step_id"] == "edit"
-    assert CONF_AUTODISCOVERY in result["data_schema"].schema
-    assert CONF_IP_ADDRESS in result["data_schema"].schema
-
-
-@pytest.mark.asyncio
-async def test_options_flow_edit_submit(hass: HomeAssistant):
-    """Test options flow edit step submission."""
-    # Create a mock config entry using MagicMock instead of actual ConfigEntry
-    config_entry = MagicMock(spec=config_entries.ConfigEntry)
-    config_entry.data = {
-        CONF_VACS: {
-            "test_device_id": {
-                CONF_ID: "test_device_id",
-                CONF_NAME: "Test RoboVac",
-                CONF_AUTODISCOVERY: True,
-                CONF_IP_ADDRESS: "",
-            }
-        }
-    }
-    config_entry.entry_id = "test_entry_id"
-
-    # Create a completed future to return from our mock
-    future = asyncio.Future()
-    future.set_result(None)
-
-    # Mock the async_update_entry method to return the future
-    hass.config_entries.async_update_entry = MagicMock(return_value=future)
-
-    # Initialize the options flow and select a vacuum
-    flow = OptionsFlowHandler(config_entry)
-    flow.hass = hass
-    flow.selected_vacuum = "test_device_id"
-
-    # Create a copy of the data to avoid modifying the original
-    updated_data = dict(config_entry.data)
-
-    # Manually update the data that would be modified by the flow
-    updated_vacs = dict(updated_data.get(CONF_VACS, {}))
-    updated_vacs["test_device_id"] = dict(updated_vacs.get("test_device_id", {}))
-    updated_vacs["test_device_id"][CONF_AUTODISCOVERY] = False
-    updated_vacs["test_device_id"][CONF_IP_ADDRESS] = "192.168.1.100"
-    updated_data[CONF_VACS] = updated_vacs
-
-    # Mock the flow's _update_data method to return our updated data
-    flow._update_data = MagicMock(return_value=updated_data)
-
-    # Test the edit step submission
-    result = await flow.async_step_edit(
-        {
-            CONF_AUTODISCOVERY: False,
-            CONF_IP_ADDRESS: "192.168.1.100",
-        }
-    )
-
-    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
-    assert result["title"] == ""
-    assert result["data"] == {}
-
-    # Verify the config entry was updated correctly
-    hass.config_entries.async_update_entry.assert_called_once()

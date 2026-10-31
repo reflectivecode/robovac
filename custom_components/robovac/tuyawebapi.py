@@ -21,13 +21,10 @@ import uuid
 from typing import Any, Dict, Optional
 
 # Third-party imports
-from cryptography.hazmat.backends.openssl import backend as openssl_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import requests
 # Local imports
 from .countries import get_phone_code_by_region
-
-TUYA_INITIAL_BASE_URL = "https://a1.tuyaeu.com"
 
 EUFY_HMAC_KEY = (
     "A_cepev5pfnhua4dkqkdpmnrdxx378mpjr_s8x78u7xwymasd9kqa7a73pjhxqsedaj".encode()
@@ -75,7 +72,6 @@ TUYA_PASSWORD_INNER_CIPHER = Cipher(
             [119, 36, 86, 242, 167, 102, 76, 243, 57, 44, 53, 151, 233, 62, 87, 71]
         )
     ),
-    backend=openssl_backend,
 )
 
 DEFAULT_TUYA_HEADERS: Dict[str, str] = {"User-Agent": "TY-UA=APP/Android/2.4.0/SDK/null"}
@@ -384,14 +380,6 @@ class TuyaAPISession:
             if session_response["phoneCode"]
             else get_phone_code_by_region(session_response["domain"]["regionCode"])
         )
-
-    def list_homes(self) -> dict:
-        """List homes from the Tuya API.
-
-        Returns:
-            A dictionary containing the list of homes.
-        """
-        return self._request(action="tuya.m.location.list", version="2.1")
 
     def get_device(self, devId: str) -> dict:
         """Get device information from the Tuya API.

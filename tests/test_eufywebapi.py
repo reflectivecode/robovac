@@ -1,6 +1,5 @@
 """Tests for the Eufy web API integration."""
 
-import json
 from unittest.mock import patch, MagicMock
 import pytest
 import requests
@@ -65,7 +64,7 @@ def mock_device_info_response():
                     "name": "RoboVac 15C",
                     "alias_name": "Test RoboVac",
                     "product": {
-                        "product_code": "T2118",
+                        "product_code": "T2259",
                         "appliance": "Cleaning",
                     },
                     "wifi": {

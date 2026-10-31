@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Config flow for Eufy Robovac integration."""
+"""Config flow for Eufy RoboVac G32 Pro integration."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from copy import deepcopy
 from typing import Any, Optional
 
 import requests
-import voluptuous as vol
+import probatio as vol
 
 import homeassistant.helpers.config_validation as cv
 from homeassistant import config_entries
@@ -189,7 +189,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
-    """Handle a config flow for Eufy Robovac."""
+    """Handle a config flow for Eufy RoboVac G32 Pro."""
 
     data: Optional[dict[str, Any]]
 
@@ -229,7 +229,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
     @callback
     def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> OptionsFlowHandler:
         """Get the options flow for this handler."""
-        return OptionsFlowHandler(config_entry)
+        return OptionsFlowHandler()
 
 
 class CannotConnect(HomeAssistantError):
@@ -243,8 +243,7 @@ class InvalidAuth(HomeAssistantError):
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handles options flow for the component."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self._config_entry = config_entry
+    def __init__(self) -> None:
         self.selected_vacuum = None
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:

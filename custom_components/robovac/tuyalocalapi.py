@@ -50,7 +50,6 @@ from typing import Any, Awaitable, Callable, Coroutine, Optional, Union
 from asyncio import Semaphore, StreamWriter
 from .vacuums.base import RobovacCommand
 
-from cryptography.hazmat.backends.openssl import backend as openssl_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.hashes import Hash, MD5
 from cryptography.hazmat.primitives.padding import PKCS7
@@ -352,16 +351,8 @@ class ConnectionFailedException(ConnectionException):
     """The socket connection failed for a reason other than timeout."""
 
 
-class RequestResponseCommandMismatch(TuyaException):
-    """The command in the response didn't match the one from the request."""
-
-
 class ResponseTimeoutException(TuyaException):
     """Did not recieve a response to the request within the timeout"""
-
-
-class BackoffException(TuyaException):
-    """Backoff time not reached"""
 
 
 class TuyaCipher:
@@ -372,7 +363,7 @@ class TuyaCipher:
         self.version = version
         self.key = key
         self.cipher = Cipher(
-            algorithms.AES(key.encode("ascii")), modes.ECB(), backend=openssl_backend
+            algorithms.AES(key.encode("ascii")), modes.ECB()
         )
 
     def get_prefix_size_and_validate(self, command: int, encrypted_data: bytes) -> int:
@@ -470,7 +461,7 @@ class TuyaCipher:
         Returns:
             The hash of the data.
         """
-        digest = Hash(MD5(), backend=openssl_backend)
+        digest = Hash(MD5())
         to_hash = "data={}||lpv={}||{}".format(
             data.decode("ascii"), ".".join(map(str, self.version)), self.key
         )
@@ -737,7 +728,6 @@ class TuyaDevice:
         self.cipher = TuyaCipher(local_key, self.version)
         self.writer: Optional[StreamWriter] = None
         self._response_task: Optional[asyncio.Task[Any]] = None
-        self._recieve_task: Optional[asyncio.Task[Any]] = None
         self._ping_task: Optional[asyncio.Task[Any]] = None
         self._handlers: dict[int, Callable[[Message], Coroutine]] = {
             Message.GRATUITOUS_UPDATE: self.async_gratuitous_update_state,
@@ -807,7 +797,7 @@ class TuyaDevice:
                         INITIAL_BACKOFF * (BACKOFF_MULTIPLIER ** (self._failures - 4)),
                         600,
                     )
-                    self._LOGGER.warn(
+                    self._LOGGER.warning(
                         "{} failures, backing off for {} seconds".format(
                             self._failures, self._queue_interval
                         )
@@ -842,10 +832,8 @@ class TuyaDevice:
         try:
             sock.connect((self.host, self.port))
         except (socket.timeout, TimeoutError):
-            self._dps[self.model_details.commands[RobovacCommand.ERROR]] = ("CONNECTION_FAILED")
+            self._dps[str(self.model_details.commands[RobovacCommand.ERROR]["code"])] = "CONNECTION_FAILED"
             raise ConnectionTimeoutException("Connection timed out")
-        loop = asyncio.get_running_loop()
-        loop.create_connection
         self.reader, self.writer = await asyncio.open_connection(sock=sock)
         self._connected = True
 
@@ -1096,8 +1084,6 @@ class TuyaDevice:
             try:
                 # We've already checked that message.listener is not None
                 listener = message.listener  # This helps mypy understand it's not None
-                # Create and await the task directly without storing it in self._recieve_task
-                # This avoids type compatibility issues
                 if listener is not None:  # Extra check for mypy
                     await asyncio.wait_for(listener.acquire(), timeout=self.timeout)
                 response = self._listeners.pop(message.sequence)

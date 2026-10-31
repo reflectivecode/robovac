@@ -14,12 +14,11 @@ tasks:
       - task test
       - task type-check
       - task lint
-      - task markdownlint
 
   test:
     desc: Run tests with pytest
     cmds:
-      - uv run pytest --cov=custom_components tests --cov-report=xml
+      - uv run --no-project pytest --cov=custom_components tests --cov-report=xml
 
   install-dev:
     desc: Install development dependencies
@@ -27,33 +26,12 @@ tasks:
       - uv venv
       - uv pip install -r requirements-dev.txt
 
-  install:
-    desc: Install dependencies
-    cmds:
-      - uv venv
-      - uv pip install -r requirements.txt
-
   type-check:
     desc: Type check with mypy
     cmds:
-      - uv run mypy --config-file=pyproject.toml custom_components
+      - uv run --no-project mypy --config-file=pyproject.toml custom_components
 
   lint:
     desc: Lint with flake8
     cmds:
-      - uv run flake8 custom_components tests
-
-  markdownlint:
-    desc: Lint with markdownlint
-    cmds:
-      - markdownlint-cli2 "**/*.md" "!vendor" "!.venv" --fix
-
-  ha-start:
-    desc: Start Home assistant, run from dev container
-    cmds:
-      - supervisor_run
-
-  ha-restart:
-    desc: Restart Home assistant, run from dev container
-    cmds:
-      - ha core restart
+      - uv run --no-project flake8 custom_components tests

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-"""The Eufy Robovac integration."""
+"""The Eufy RoboVac G32 Pro integration."""
 from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
@@ -21,22 +21,25 @@ from typing import Any, Dict, Optional
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform, CONF_IP_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
 from .const import CONF_VACS, DOMAIN
 
 from .tuyalocaldiscovery import TuyaLocalDiscovery
 
 PLATFORMS = [Platform.VACUUM, Platform.SENSOR]
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up the Eufy Robovac component.
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up the Eufy RoboVac G32 Pro component.
 
     This function initializes the component and sets up the discovery service.
 
     Args:
         hass: The Home Assistant instance.
-        entry: The config entry.
+        config: The Home Assistant configuration.
 
     Returns:
         True if setup was successful.
@@ -79,7 +82,7 @@ async def async_setup(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Eufy Robovac from a config entry."""
+    """Set up Eufy RoboVac G32 Pro from a config entry."""
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

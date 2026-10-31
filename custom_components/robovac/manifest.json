@@ -1,15 +1,15 @@
 {
     "domain": "robovac",
-    "name": "Eufy Robovac",
+    "name": "Eufy RoboVac G32 Pro",
     "codeowners": [
-        "@damacus"
+        "@reflectivecode"
     ],
     "config_flow": true,
     "dependencies": [],
-    "documentation": "https://github.com/damacus/robovac",
+    "documentation": "https://github.com/reflectivecode/robovac",
     "integration_type": "device",
     "iot_class": "local_polling",
-    "issue_tracker": "https://github.com/damacus/robovac/issues",
+    "issue_tracker": "https://github.com/reflectivecode/robovac/issues",
     "requirements": [],
-    "version": "1.3.4"
+    "version": "1.3.5"
 }

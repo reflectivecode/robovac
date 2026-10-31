@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.5 (2026-10-31)
+
+Fork of damacus/robovac v1.3.4 supporting only the RoboVac G32 Pro (T2259).
+
+### Breaking Changes
+
+* Removed support for all models other than T2259
+* Requires Home Assistant 2026.8 or later
+* Battery level is no longer an attribute of the vacuum entity; use the battery sensor
+* Removed the `boostIQ` and `roomClean` vacuum commands, which the G32 Pro does not support
+* Removed non-English translations
+
+### Bug Fixes
+
+* Remove `VacuumEntityFeature.BATTERY`, which Home Assistant 2026.8 removed
+* Fix options flow for current Home Assistant config entry handling
+* Fix crash when recording a connection timeout as an error state
+* Stop logging a warning on every update for statuses the G32 Pro already reports in readable form
+
 ## [1.3.4](https://github.com/damacus/robovac/compare/v1.3.3...v1.3.4) (2025-10-13)
 
 

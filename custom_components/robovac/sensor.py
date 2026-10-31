@@ -5,7 +5,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, EntityCategory, CONF_NAME, CONF_ID
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import CONF_VACS, DOMAIN, REFRESH_RATE
@@ -20,7 +20,7 @@ SCAN_INTERVAL = timedelta(seconds=REFRESH_RATE)
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the Eufy RoboVac sensor platform."""
     vacuums = config_entry.data[CONF_VACS]

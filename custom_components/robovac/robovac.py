@@ -1,6 +1,4 @@
-from typing import Any, cast
-from collections.abc import Mapping
-from homeassistant.components.vacuum import VacuumActivity
+from typing import Any
 
 from .tuyalocalapi import TuyaDevice
 from .vacuums import ROBOVAC_MODELS
@@ -24,7 +22,7 @@ class RoboVac(TuyaDevice):
 
     Attributes:
         model_details: Model-specific configuration and feature mappings
-        model_code: The specific model identifier (e.g., "T2080", "L60")
+        model_code: The specific model identifier (e.g., "T2259")
     """
     model_details: type[RobovacModelDetails]
 
@@ -69,16 +67,6 @@ class RoboVac(TuyaDevice):
         """
         return self.model_details.robovac_features
 
-    def getRoboVacActivityMapping(self) -> dict[str, VacuumActivity] | None:
-        """Get the mapping of device statuses to Home Assistant VacuumActivity enums.
-
-        Returns:
-            dict[str, VacuumActivity] | None: Dictionary mapping human-readable vacuum
-                statuses (e.g., "Auto cleaning", "Returning home") to Home Assistant
-                VacuumActivity enum values, or None if not configured for this model.
-        """
-        return self.model_details.activity_mapping
-
     def _get_command_values(
         self, command_name: RobovacCommand
     ) -> dict[str, str] | None:
@@ -120,15 +108,6 @@ class RoboVac(TuyaDevice):
         # Return the values from the dictionary (the display names)
         # This preserves existing behavior for tests
         return list(values.values())
-
-    def getSupportedCommands(self) -> list[str]:
-        """Get the list of supported commands for this vacuum model.
-
-        Returns:
-            list[str]: List of RobovacCommand enum names that are supported by this model
-                      (e.g., ["MODE", "FAN_SPEED", "AUTO_RETURN"])
-        """
-        return list(self.model_details.commands.keys())
 
     def getDpsCodes(self) -> dict[str, str]:
         """Get the DPS codes for this model based on command codes.
@@ -177,9 +156,8 @@ class RoboVac(TuyaDevice):
             value: The human-readable value (e.g., "auto", "edge", "Standard")
 
         Returns:
-            str: The model-specific value for the device (e.g., "BBoCCAE=" for L60 "auto" mode,
-                 "CAoCCAE=" for T2080 base64-encoded commands). Returns the original value
-                 if no mapping exists.
+            str: The model-specific value for the device (e.g., "Auto" for "auto" mode).
+                 Returns the original value if no mapping exists.
         """
         try:
             # Check if command_name is already a RobovacCommand enum
@@ -214,10 +192,18 @@ class RoboVac(TuyaDevice):
             cmd = command_name if isinstance(command_name, RobovacCommand) else RobovacCommand(command_name)
             values = self._get_command_values(cmd)
 
-            if values is not None:
-                # Direct lookup: the input value should be a key in the values dict
-                if str(value) in values:
-                    return str(values[value])
+            if values is None:
+                # No mapping for this command: the device already reports
+                # human-readable values
+                return value
+
+            # Direct lookup: the input value should be a key in the values dict
+            if str(value) in values:
+                return str(values[value])
+
+            # The device reported an already human-readable value
+            if str(value) in values.values():
+                return value
 
         except (ValueError, KeyError):
             pass

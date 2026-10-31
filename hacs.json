@@ -1,4 +1,5 @@
 {
-  "name": "Eufy RoboVac",
-  "render_readme": true
+  "name": "Eufy RoboVac G32 Pro",
+  "render_readme": true,
+  "homeassistant": "2026.8.0"
 }

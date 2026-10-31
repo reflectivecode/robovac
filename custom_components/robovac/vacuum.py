@@ -12,16 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Eufy Robovac vacuum platform.
+"""Eufy RoboVac G32 Pro vacuum platform.
 
-This module provides the vacuum entity integration for Eufy Robovac devices.
+This module provides the vacuum entity integration for Eufy RoboVac G32 Pro devices.
 """
 from __future__ import annotations
-import ast
-import base64
 from datetime import timedelta
-from enum import StrEnum
-import json
 import logging
 import time
 from typing import Any, cast
@@ -42,29 +38,20 @@ from homeassistant.const import (
     CONF_NAME,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import CONF_VACS, DOMAIN, PING_RATE, REFRESH_RATE, TIMEOUT
 from .errors import getErrorMessage
-from .vacuums.base import RobovacCommand, RoboVacEntityFeature, TuyaCodes, TUYA_CONSUMABLES_CODES
+from .vacuums.base import RobovacCommand, RoboVacEntityFeature, TuyaCodes
 from .robovac import ModelNotSupportedException, RoboVac
 from .tuyalocalapi import TuyaException
 
-ATTR_BATTERY_ICON = "battery_icon"
 ATTR_ERROR = "error"
-ATTR_FAN_SPEED = "fan_speed"
-ATTR_FAN_SPEED_LIST = "fan_speed_list"
-ATTR_STATUS = "status"
-ATTR_ERROR_CODE = "error_code"
-ATTR_MODEL_CODE = "model_code"
 ATTR_CLEANING_AREA = "cleaning_area"
 ATTR_CLEANING_TIME = "cleaning_time"
 ATTR_AUTO_RETURN = "auto_return"
 ATTR_DO_NOT_DISTURB = "do_not_disturb"
-ATTR_BOOST_IQ = "boost_iq"
-ATTR_CONSUMABLES = "consumables"
 ATTR_MODE = "mode"
 
 _LOGGER = logging.getLogger(__name__)
@@ -75,7 +62,7 @@ UPDATE_RETRIES = 3
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Initialize my test integration 2 config entry."""
     vacuums = config_entry.data[CONF_VACS]
@@ -107,11 +94,8 @@ class RoboVacEntity(StateVacuumEntity):
     _attr_cleaning_time: str | None = None
     _attr_auto_return: str | None = None
     _attr_do_not_disturb: str | None = None
-    _attr_boost_iq: str | None = None
-    _attr_consumables: str | None = None
     _attr_mode: str | None = None
     _attr_robovac_supported: int | None = None
-    _attr_activity_mapping: dict[str, VacuumActivity] | None = None
     _attr_error_code: int | str | None = None
     _attr_tuya_state: int | str | None = None
 
@@ -121,19 +105,9 @@ class RoboVacEntity(StateVacuumEntity):
         return self._attr_robovac_supported
 
     @property
-    def activity_mapping(self) -> dict[str, VacuumActivity] | None:
-        """Return the mapping of statuses to Home Assistant VacuumActivity."""
-        return self._attr_activity_mapping
-
-    @property
     def mode(self) -> str | None:
         """Return the cleaning mode of the vacuum cleaner."""
         return self._attr_mode
-
-    @property
-    def consumables(self) -> str | None:
-        """Return the consumables status of the vacuum cleaner."""
-        return self._attr_consumables
 
     @property
     def cleaning_area(self) -> str | None:
@@ -156,41 +130,14 @@ class RoboVacEntity(StateVacuumEntity):
         return self._attr_do_not_disturb
 
     @property
-    def boost_iq(self) -> str | None:
-        """Return the boost_iq mode of the vacuum cleaner."""
-        return self._attr_boost_iq
-
-    @property
     def tuya_state(self) -> str | int | None:
-        """Return the state of the vacuum cleaner.
-
-        This property is for backward compatibility with tests.
-        """
+        """Return the raw status reported by the vacuum cleaner."""
         return self._attr_tuya_state
-
-    @tuya_state.setter
-    def tuya_state(self, value: str | int | None) -> None:
-        """Set the state of the vacuum cleaner.
-
-        This setter is for backward compatibility with tests.
-        """
-        self._attr_tuya_state = value
 
     @property
     def error_code(self) -> int | str | None:
-        """Return the error code of the vacuum cleaner.
-
-        This property is for backward compatibility with tests.
-        """
+        """Return the error code of the vacuum cleaner."""
         return self._attr_error_code
-
-    @error_code.setter
-    def error_code(self, value: int | str | None) -> None:
-        """Set the error code of the vacuum cleaner.
-
-        This setter is for backward compatibility with tests.
-        """
-        self._attr_error_code = value
 
     @property
     def model_code(self) -> str | None:
@@ -272,23 +219,6 @@ class RoboVacEntity(StateVacuumEntity):
             # Particularly at system startup, the state may be set to a
             # VacuumActivity value directly, so we can return it as is.
             return cast(VacuumActivity, self._attr_tuya_state)
-        elif self.activity_mapping is not None:
-            # Use the activity mapping from the model details
-            activity = self.activity_mapping.get(str(self._attr_tuya_state))
-
-            if activity is not None:
-                _LOGGER.debug(
-                    "Used activity mapping, changing status %s to activity %s",
-                    self._attr_tuya_state,
-                    activity
-                )
-                return activity
-            else:
-                _LOGGER.debug(
-                    "Activity mapping lookup failed for status %s - no mapping found",
-                    self._attr_tuya_state
-                )
-                return None
         elif self._attr_tuya_state == "Charging" or self._attr_tuya_state == "completed":
             return VacuumActivity.DOCKED
         elif self._attr_tuya_state == "Recharge":
@@ -335,18 +265,6 @@ class RoboVacEntity(StateVacuumEntity):
             and self.do_not_disturb
         ):
             data[ATTR_DO_NOT_DISTURB] = self.do_not_disturb
-        if (
-            self.robovac_supported is not None
-            and self.robovac_supported & RoboVacEntityFeature.BOOST_IQ
-            and self.boost_iq
-        ):
-            data[ATTR_BOOST_IQ] = self.boost_iq
-        if (
-            self.robovac_supported is not None
-            and self.robovac_supported & RoboVacEntityFeature.CONSUMABLES
-            and self.consumables
-        ):
-            data[ATTR_CONSUMABLES] = self.consumables
         if self.mode:
             data[ATTR_MODE] = self.mode
         return data
@@ -361,7 +279,7 @@ class RoboVacEntity(StateVacuumEntity):
             item: Configuration dictionary containing vacuum connection details:
                   - id: Unique identifier for the vacuum
                   - name: Display name for the vacuum
-                  - model: Model code (e.g., "T2080", "L60")
+                  - model: Model code (e.g., "T2259")
                   - ip_address: Local IP address of the vacuum
                   - access_token: Tuya access token for authentication
                   - device_id: Tuya device identifier
@@ -369,7 +287,6 @@ class RoboVacEntity(StateVacuumEntity):
         super().__init__()
 
         # Initialize basic attributes
-        self._attr_battery_level = 0
         self._attr_name = item[CONF_NAME]
         self._attr_unique_id = item[CONF_ID]
         self._attr_model_code = item[CONF_MODEL]
@@ -416,7 +333,6 @@ class RoboVacEntity(StateVacuumEntity):
             features = int(self.vacuum.getHomeAssistantFeatures())
             self._attr_supported_features = VacuumEntityFeature(features)
             self._attr_robovac_supported = self.vacuum.getRoboVacFeatures()
-            self._attr_activity_mapping = self.vacuum.getRoboVacActivityMapping()
             self._attr_fan_speed_list = self.vacuum.getFanSpeeds()
 
             _LOGGER.debug(
@@ -436,7 +352,6 @@ class RoboVacEntity(StateVacuumEntity):
 
         # Initialize additional attributes
         self._attr_mode = None
-        self._attr_consumables = None
 
         # Set up device info for Home Assistant device registry
         self._attr_device_info = DeviceInfo(
@@ -544,8 +459,7 @@ class RoboVacEntity(StateVacuumEntity):
 
         _LOGGER.debug("Updating entity values from data points: %s", self.tuyastatus)
 
-        # Update common attributes for all models
-        self._update_battery_level()
+        # Battery level is exposed by the separate battery sensor entity
         self._update_state_and_error()
         self._update_mode_and_fan_speed()
 
@@ -573,50 +487,6 @@ class RoboVacEntity(StateVacuumEntity):
 
         enum_value = getattr(TuyaCodes, code_name, None)
         return enum_value.value if enum_value else ""
-
-    def _get_consumables_codes(self) -> list[str]:
-        """Get the consumables DPS codes.
-
-        First checks for model-specific codes, then falls back to defaults.
-
-        Returns:
-            A list of DPS codes for consumables
-        """
-        if self.vacuum is None:
-            return TUYA_CONSUMABLES_CODES
-
-        # Get model-specific DPS codes
-        model_dps_codes = self.vacuum.getDpsCodes()
-
-        # Return model-specific code if available, otherwise use default
-        if "CONSUMABLES" in model_dps_codes:
-            # Model-specific consumables can be a list or comma-separated string
-            consumables = model_dps_codes["CONSUMABLES"]
-            if isinstance(consumables, str):
-                return [code.strip() for code in consumables.split(",")]
-            return consumables
-
-        # Fall back to default codes
-        return TUYA_CONSUMABLES_CODES
-
-    def _update_battery_level(self) -> None:
-        """Update the battery level attribute."""
-        if self.tuyastatus is None:
-            return
-
-        battery_level = self.tuyastatus.get(self._get_dps_code("BATTERY_LEVEL"))
-
-        # Ensure battery level is an integer between 0 and 100
-        if battery_level is not None:
-            try:
-                self._attr_battery_level = int(battery_level)
-                # Ensure the value is within valid range
-                self._attr_battery_level = max(0, min(100, self._attr_battery_level))
-            except (ValueError, TypeError):
-                _LOGGER.warning("Invalid battery level value: %s", battery_level)
-                self._attr_battery_level = 0
-        else:
-            self._attr_battery_level = 0
 
     def _update_state_and_error(self) -> None:
         """Update the state and error code attributes."""
@@ -702,35 +572,6 @@ class RoboVacEntity(StateVacuumEntity):
 
             do_not_disturb = self.tuyastatus.get(self._get_dps_code("DO_NOT_DISTURB"))
             self._attr_do_not_disturb = str(do_not_disturb) if do_not_disturb is not None else None
-
-            boost_iq = self.tuyastatus.get(self._get_dps_code("BOOST_IQ"))
-            self._attr_boost_iq = str(boost_iq) if boost_iq is not None else None
-
-        # Handle consumables
-        if (
-            isinstance(self.robovac_supported, int)
-            and self.robovac_supported & RoboVacEntityFeature.CONSUMABLES
-            and self.tuyastatus is not None
-        ):
-            # Use model-specific consumables codes
-            for CONSUMABLE_CODE in self._get_consumables_codes():
-                if (
-                    CONSUMABLE_CODE in self.tuyastatus
-                    and self.tuyastatus.get(CONSUMABLE_CODE) is not None
-                ):
-                    consumable_data = self.tuyastatus.get(CONSUMABLE_CODE)
-                    if isinstance(consumable_data, str):
-                        try:
-                            consumables = ast.literal_eval(
-                                base64.b64decode(consumable_data).decode("ascii")
-                            )
-                            if (
-                                "consumable" in consumables
-                                and "duration" in consumables["consumable"]
-                            ):
-                                self._attr_consumables = consumables["consumable"]["duration"]
-                        except Exception as e:
-                            _LOGGER.warning("Failed to decode consumable data: %s", str(e))
 
     async def async_locate(self, **kwargs: Any) -> None:
         """Locate the vacuum cleaner.
@@ -879,25 +720,6 @@ class RoboVacEntity(StateVacuumEntity):
             await self.vacuum.async_set({
                 self._get_dps_code("DO_NOT_DISTURB"): new_value
             })
-        elif command == "boostIQ":
-            # Toggle the boost IQ setting
-            new_value = not self._is_value_true(self.boost_iq)
-            await self.vacuum.async_set({
-                self._get_dps_code("BOOST_IQ"): new_value
-            })
-        elif command == "roomClean" and params is not None and isinstance(params, dict):
-            room_ids = params.get("roomIds", [1])
-            count = params.get("count", 1)
-            clean_request = {"roomIds": room_ids, "cleanTimes": count}
-            method_call = {
-                "method": "selectRoomsClean",
-                "data": clean_request,
-                "timestamp": round(time.time() * 1000),
-            }
-            json_str = json.dumps(method_call, separators=(",", ":"))
-            base64_str = base64.b64encode(json_str.encode("utf8")).decode("utf8")
-            _LOGGER.debug("roomClean call %s", json_str)
-            await self.vacuum.async_set({TuyaCodes.ROOM_CLEAN: base64_str})
 
     async def async_will_remove_from_hass(self) -> None:
         """Handle removal from Home Assistant."""
