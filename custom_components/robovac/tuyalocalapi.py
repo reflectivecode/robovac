@@ -45,7 +45,6 @@ import logging
 import socket
 import struct
 import time
-import traceback
 from typing import Any, Awaitable, Callable, Coroutine, Optional, Union
 from asyncio import Semaphore, StreamWriter
 from .vacuums.base import RobovacCommand
@@ -727,7 +726,6 @@ class TuyaDevice:
 
         self.cipher = TuyaCipher(local_key, self.version)
         self.writer: Optional[StreamWriter] = None
-        self._response_task: Optional[asyncio.Task[Any]] = None
         self._ping_task: Optional[asyncio.Task[Any]] = None
         self._handlers: dict[int, Callable[[Message], Coroutine]] = {
             Message.GRATUITOUS_UPDATE: self.async_gratuitous_update_state,
@@ -826,21 +824,21 @@ class TuyaDevice:
         if self._connected is True or self._enabled is False:
             return
 
-        sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        sock.settimeout(self.timeout)
         self._LOGGER.debug("Connecting to {}".format(self))
         try:
-            sock.connect((self.host, self.port))
-        except (socket.timeout, TimeoutError):
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(self.host, self.port), timeout=self.timeout
+            )
+        except TimeoutError:
             self._dps[str(self.model_details.commands[RobovacCommand.ERROR]["code"])] = "CONNECTION_FAILED"
             raise ConnectionTimeoutException("Connection timed out")
-        self.reader, self.writer = await asyncio.open_connection(sock=sock)
+        self.reader, self.writer = reader, writer
         self._connected = True
 
         if self._ping_task is None:
             self._ping_task = asyncio.create_task(self.async_ping(self.ping_interval))
 
-        asyncio.create_task(self._async_handle_message())
+        asyncio.create_task(self._async_handle_message(reader))
 
     async def async_disable(self) -> None:
         """Disable the device.
@@ -978,36 +976,31 @@ class TuyaDevice:
         """
         asyncio.create_task(self.async_set(new_values))
 
-    async def _async_handle_message(self) -> None:
+    async def _async_handle_message(self, reader: asyncio.StreamReader) -> None:
         """Handle incoming messages.
 
-        This method handles incoming messages from the device.
+        Reads messages from one connection until it closes. When the device
+        closes the connection, mark the device as disconnected so the next
+        message sent opens a new connection.
         """
-        if self._enabled is False or self._connected is False:
-            return
-
-        try:
-            self._response_task = asyncio.create_task(
-                self.reader.readuntil(MAGIC_SUFFIX_BYTES)
-            )
-            await self._response_task
-            response_data = self._response_task.result()
-            message = Message.from_bytes(self, response_data, self.cipher)
-        except Exception as e:
-            if isinstance(e, InvalidMessage):
+        while self._enabled and self._connected and self.reader is reader:
+            try:
+                response_data = await reader.readuntil(MAGIC_SUFFIX_BYTES)
+                message = Message.from_bytes(self, response_data, self.cipher)
+            except InvalidMessage as e:
                 self._LOGGER.debug("Invalid message from {}: {}".format(self, e))
-            elif isinstance(e, MessageDecodeFailed):
+                continue
+            except MessageDecodeFailed:
                 self._LOGGER.debug("Failed to decrypt message from {}".format(self))
-            elif isinstance(e, asyncio.IncompleteReadError):
-                if self._connected:
-                    self._LOGGER.debug("Incomplete read")
-            elif isinstance(e, ConnectionResetError):
-                self._LOGGER.debug(
-                    "Connection reset: {}\n{}".format(e, traceback.format_exc())
-                )
-                await self.async_disconnect()
+                continue
+            except Exception as e:
+                if self.reader is reader and self._connected:
+                    self._LOGGER.debug(
+                        "Connection to {} closed: {!r}".format(self, e)
+                    )
+                    await self.async_disconnect()
+                return
 
-        else:
             self._LOGGER.debug("Received message from {}: {}".format(self, message))
             if message.sequence in self._listeners:
                 sem = self._listeners[message.sequence]
@@ -1018,9 +1011,6 @@ class TuyaDevice:
                 handler = self._handlers.get(message.command, None)
                 if handler is not None:
                     asyncio.create_task(handler(message))
-
-        self._response_task = None
-        asyncio.create_task(self._async_handle_message())
 
     async def _async_send(self, message: Message, retries: int = 2) -> None:
         """Send a message to the device.
@@ -1074,9 +1064,6 @@ class TuyaDevice:
 
         This method receives a message from the device.
         """
-        if self._connected is False:
-            return None
-
         has_listener = (message.expect_response is True
                         and hasattr(message, 'listener')
                         and message.listener is not None)

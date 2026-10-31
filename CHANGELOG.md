@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.6 (2026-10-31)
+
+### Bug Fixes
+
+* Fix start, pause and dock commands being lost when the vacuum closes its connection
+* Stop busy-looping on a closed connection
+* Fix the first status poll after connecting being discarded
+* Connect without blocking Home Assistant while the vacuum is unreachable
+
 ## 1.3.5 (2026-10-31)
 
 Fork of damacus/robovac v1.3.4 supporting only the RoboVac G32 Pro (T2259).
